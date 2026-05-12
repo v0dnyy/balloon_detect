@@ -62,13 +62,13 @@ python export_tensorrt.py --model best.pt --imgsz 416 --int8   # INT8, быст�
 
 ```bash
 # Боевой режим
-python infer_stream.py --model best.engine --half
+python infer_stream.py --model best.pt --half
 
 # С отображением окна и записью видео
-python infer_stream.py --model best.engine --camera_id 0 --show --save_video --save_logs
+python infer_stream.py --model best.pt --camera_id 0 --show --save_video --save_logs
 
 # Без MAVLink (режим отладки)
-python infer_stream.py --model best.engine --no_mav --show
+python infer_stream.py --model best.pt --no_mav --show
 ```
 
 | Аргумент | По умолчанию | Описание |
@@ -88,7 +88,7 @@ python infer_stream.py --model best.engine --no_mav --show
 ### 2. Инференс на видеофайле (оффлайн)
 
 ```bash
-python infer_video.py --model best.engine --input video.mp4 --save_video --save_logs
+python infer_video.py --model best.pt --input video.mp4 --save_video --save_logs
 
 # С отображением в реальном времени
 python infer_video.py --model best.pt --input video.mp4 --show
@@ -108,8 +108,8 @@ python infer_video.py --model best.pt --input video.mp4 --show
 Обрабатывает изображения и видео рекурсивно. Поддерживаемые форматы: `jpg`, `png`, `bmp`, `tiff`, `webp`, `mp4`, `avi`, `mov`, `mkv`.
 
 ```bash
-python infer_dir.py --model best.engine --input ./images
-python infer_dir.py --model best.engine --input ./images --exts jpg png
+python infer_dir.py --model best.pt --input ./images
+python infer_dir.py --model best.pt --input ./images --exts jpg png
 ```
 
 | Аргумент | По умолчанию | Описание |
