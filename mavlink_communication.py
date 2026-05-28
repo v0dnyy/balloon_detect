@@ -4,7 +4,7 @@ from pymavlink import mavutil
 
 
 class MAVLinkCommunication:
-    def __init__(self, port: str = 'COM11', source_system: int = 1, source_component: int = 0):
+    def __init__(self, port: str = 'COM12', source_system: int = 1, source_component: int = 0):
         self.port = port
         try:
             self.connection = utility.mavlink_connection(

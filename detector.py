@@ -36,6 +36,8 @@ def get_device(model_path: str) -> str:
 class BalloonDetector:
 
     def __init__(self, cfg: InferenceConfig):
+        torch.backends.cudnn.benchmark = False
+        torch.cuda.empty_cache()
         self.cfg = cfg
         self.device = get_device(str(cfg.model_path))
         logger.info(f"Loading model: {cfg.model_path}")
