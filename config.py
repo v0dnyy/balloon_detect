@@ -1,6 +1,6 @@
+import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
-import warnings
 
 
 @dataclass
@@ -9,6 +9,7 @@ class InferenceConfig:
     Общие настройки для всех скриптов инференса.
     Все изменяемые константы — здесь. Скрипты импортируют только это.
     """
+
     # ── Модель ────────────────────────────────────────────────────────────────
     model_path: str = "best.pt"  # .pt / .engine (TensorRT) / .onnx
     imgsz: int = 640
@@ -22,7 +23,14 @@ class InferenceConfig:
     camera_fps_fallback: int = 30  # если камера вернула 0 FPS
 
     # ── MAVLink ───────────────────────────────────────────────────────────────
-    mav_port: str = "/dev/ttyTHS0"  # UART на Jetson; /dev/ttyUSB0 для USB
+    mav_port: str = "/dev/ttyTHS0"
+
+    # ── Расстояние (Bbox Area Ratio) ──────────────────────────────────────────
+    distance_close_threshold: float = 0.01  # >= 8% площади кадра → CLOSE
+    distance_far_threshold: float = 0.002  # <= 2% площади кадра → FAR
+
+    # Кулдаун между MAVLink-алертами одной зоны (секунды).
+    mav_alert_cooldown_s: float = 5.0
 
     # ── Вывод ─────────────────────────────────────────────────────────────────
     output_dir: Path = Path("./output")
@@ -30,19 +38,17 @@ class InferenceConfig:
     show_fps_overlay: bool = True
 
     # ── Визуализация ──────────────────────────────────────────────────────────
-    # Детерминированная палитра цветов по классу (без random.seed)
-    class_palette: list = field(default_factory=lambda: [
-        (255, 56, 56),  # 0 — красный
-        (72, 209, 204),  # 1 — бирюзовый
-        (255, 212, 67),  # 2 — жёлтый
-        (0, 161, 255),  # 3 — синий
-        (138, 43, 226),  # 4 — фиолетовый
-        (50, 205, 50),  # 5 — зелёный
-    ])
+    zone_colors: dict = field(
+        default_factory=lambda: {
+            "FAR": (50, 205, 50),  # зелёный
+            "MEDIUM": (255, 212, 67),  # оранжевый
+            "CLOSE": (0, 0, 220),  # красный
+            "UNKNOWN": (180, 180, 180),  # серый
+        }
+    )
 
-    def class_color(self, cls_id: int) -> tuple:
-        """Возвращает BGR-цвет для класса без побочных эффектов."""
-        return self.class_palette[int(cls_id) % len(self.class_palette)]
+    def zone_color(self, zone: str) -> tuple:
+        return self.zone_colors.get(zone, self.zone_colors["UNKNOWN"])
 
     def __post_init__(self):
         self.output_dir = Path(self.output_dir)

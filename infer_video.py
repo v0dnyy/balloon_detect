@@ -93,6 +93,7 @@ def main():
     last_results = None  # результаты последнего реального инференса
     t_start = time.perf_counter()
     prev_time = t_start
+    last_detections: list[dict] = []
 
     # ── Основной цикл ─────────────────────────────────────────────────────────
     pbar = tqdm(
@@ -114,9 +115,10 @@ def main():
             # ── Frame skip: инференс каждые FRAME_SKIP кадров ─────────────────
             if run_inference:
                 last_results = detector.predict(frame)
+                last_detections = detector.extract_detections(last_results, frame.shape)
 
             # На пропущенных кадрах detections=[] — лог не срабатывает
-            detections = detector.extract_detections(last_results) if run_inference else []
+            # detections = detector.extract_detections(last_results, frame.shape) if run_inference else []
 
             # ── FPS ───────────────────────────────────────────────────────────
             fps_real = None
@@ -126,13 +128,13 @@ def main():
                 prev_time = curr_time
 
             # Рисуем last_results на каждом кадре — боксы не мигают
-            vis = detector.draw(frame, last_results, fps=fps_real)
+            vis = detector.draw(frame, last_results, detections=last_detections, fps=fps_real)
 
             if writer:
                 writer.write(vis)
 
-            if log_path and detections:
-                detector.append_log(log_path, detections)
+            if log_path and last_detections:
+                detector.append_log(log_path, last_detections)
 
             if args.show:
                 cv2.imshow("Video Inference", vis)
@@ -143,7 +145,7 @@ def main():
             # Обновляем прогресс-бар каждый кадр
             elapsed = time.perf_counter() - t_start
             avg_fps = frame_idx / max(elapsed, 1e-6)
-            det_count = len(detections) if detections else 0
+            det_count = len(last_detections)
             pbar.set_postfix({
                 "FPS": f"{avg_fps:.1f}",
                 "det": det_count,

@@ -110,6 +110,8 @@ def main():
     last_results = None  # последние результаты YOLO
     lost_streak = 0  # счётчик потерянных кадров подряд
     prev_time = time.perf_counter()
+    last_detections: list[dict] = []     # последние детекции с зонами
+    last_alert_time: dict[str, float] = {}  # кулдаун по зонам
 
     # ── Основной цикл ─────────────────────────────────────────────────────────
     try:
@@ -147,21 +149,32 @@ def main():
 
             if run_inference:
                 last_results = detector.predict(frame)
+                last_detections = detector.extract_detections(last_results, frame.shape)
+
 
             # На пропущенных кадрах detections=[] — MAVLink и лог не срабатывают
-            detections = detector.extract_detections(last_results) if run_inference else []
+            # detections = detector.extract_detections(last_results) if run_inference else []
 
             # ── MAVLink — только при наличии детекций ─────────────────────────
-            if detections and mav:
-                class_names = [d["class"] for d in detections]
-                try:
-                    mav.send_detection_alert(
-                        detection_count=len(class_names),
-                        class_names=class_names,
-                    )
-                except Exception as e:
-                    logger.error(f"MAVLink send error: {e}")
-
+            if last_detections and mav:
+                for det in last_detections:
+                    zone = det["distance_zone"]
+                    area_ratio = det["area_ratio"]
+                    now = time.monotonic()
+                    # Кулдаун: не отправляем одну зону чаще раза в N секунд
+                    if now - last_alert_time.get(zone, 0) >= cfg.mav_alert_cooldown_s:
+                        last_alert_time[zone] = now
+                        try:
+                            mav.send_detection_alert(
+                                detection_count=len(last_detections),
+                                class_names=[d["class"] for d in last_detections],
+                                zone=zone,
+                                area_ratio=area_ratio,
+                            )
+                            # Команда уклонения — срабатывает только при CLOSE
+                            mav.send_avoidance_command(zone)
+                        except Exception as e:
+                            logger.error(f"MAVLink send error: {e}")
             # ── FPS (только если нужен оверлей) ──────────────────────────────
             fps_real = None
             if args.show:
@@ -172,13 +185,13 @@ def main():
             # ── Визуализация ──────────────────────────────────────────────────
             # last_results содержит боксы с последнего инференса —
             # на пропущенных кадрах рисуем их поверх нового кадра
-            vis = detector.draw(frame, last_results, fps=fps_real)
+            vis = detector.draw(frame, last_results, detections=last_detections, fps=fps_real)
 
             if writer:
                 writer.write(vis)
 
-            if log_path and detections:
-                detector.append_log(log_path, detections)
+            if log_path and last_detections:
+                detector.append_log(log_path, last_detections)
 
             if args.show:
                 cv2.imshow("UAV Stream", vis)
