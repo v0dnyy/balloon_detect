@@ -9,12 +9,13 @@ set -euo pipefail
 
 # ── Конфигурация ─────────────────────────────────────────────────────────────
 SCRIPT="infer_stream.py"
-ENGINE="best.pt"        # путь к TensorRT движку
+ENGINE="best.engine"        # путь к TensorRT движку
 CAMERA_ID=0                 # индекс камеры (/dev/video0)
 IMGSZ=640                   # размер изображения для инференса
 CONF=0.55                   # порог уверенности
 IOU=0.65                    # порог IoU
 MAV_PORT="/dev/ttyACM0"     # UART порт MAVLink на Jetson
+DATA="data.yaml"
 
 for arg in "$@"; do
     case $arg in
@@ -23,6 +24,7 @@ for arg in "$@"; do
         --iou=*)   IOU="${arg#*=}" ;;
         --imgsz=*) IMGSZ="${arg#*=}" ;;
         --mav_port=*) MAV_PORT="${arg#*=}" ;;
+        --data=*) DATA="${arg#*=}" ;;
     esac
 done
 
@@ -34,6 +36,7 @@ ARGS=(
     --conf       "$CONF"
     --iou        "$IOU"
     --mav_port   "$MAV_PORT"
+    --data  "$DATA"
     --half                   # FP16 — обязательно на Jetson
     --save_video             # всегда пишем видео на борту
     --save_logs              # всегда пишем JSONL лог детекций
