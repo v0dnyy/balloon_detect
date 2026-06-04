@@ -29,6 +29,7 @@ FRAME_SKIP = 1
 def parse_args():
     parser = argparse.ArgumentParser(description="Offline video inference")
     parser.add_argument("--model", type=str, required=True, help="Path to model (.pt or .engine)")
+    parser.add_argument("--data", type=str, default=None, help="Path to data.yaml (required for .engine)")
     parser.add_argument("--input", type=str, required=True, help="Path to input video file")
     parser.add_argument("--imgsz", type=int, default=640, help="Inference image size")
     parser.add_argument("--conf", type=float, default=0.50, help="Confidence threshold")
@@ -52,6 +53,7 @@ def main():
         conf=args.conf,
         iou=args.iou,
         half=args.half,
+        data_yaml=args.data
     )
     detector = BalloonDetector(cfg)
 

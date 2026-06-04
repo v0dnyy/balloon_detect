@@ -14,7 +14,7 @@ CAMERA_ID=0                 # индекс камеры (/dev/video0)
 IMGSZ=640                   # размер изображения для инференса
 CONF=0.55                   # порог уверенности
 IOU=0.65                    # порог IoU
-MAV_PORT="/dev/ttyTHS0"     # UART порт MAVLink на Jetson
+MAV_PORT="/dev/ttyACM0"     # UART порт MAVLink на Jetson
 
 for arg in "$@"; do
     case $arg in

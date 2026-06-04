@@ -13,6 +13,7 @@ import cv2
 import numpy as np
 import torch
 from ultralytics import YOLO
+import yaml
 
 from config import InferenceConfig
 
@@ -39,6 +40,20 @@ def get_device(model_path: str) -> str:
     return "cpu"
 
 
+def _load_names_from_yaml(data_yaml_path: str) -> dict[int, str]:
+    """Загружает имена классов из data.yaml (list или dict формат)."""
+    with open(data_yaml_path, "r", encoding="utf-8") as f:
+        data = yaml.safe_load(f)
+    names = data.get("names")
+    if names is None:
+        raise ValueError(f"Field 'names' not found in {data_yaml_path}")
+    if isinstance(names, dict):
+        return {int(k): str(v) for k, v in names.items()}
+    if isinstance(names, list):
+        return {i: str(v) for i, v in enumerate(names)}
+    raise ValueError(f"Unsupported 'names' format in {data_yaml_path}: {type(names)}")
+
+
 class BalloonDetector:
     def __init__(self, cfg: InferenceConfig):
         torch.backends.cudnn.benchmark = False
@@ -50,7 +65,35 @@ class BalloonDetector:
         self.model = YOLO(str(cfg.model_path), task="detect")
         if str(cfg.model_path).endswith(".pt"):
             self.model.fuse()
+        
+        is_engine = str(cfg.model_path).endswith(".engine")
+
+        if is_engine:
+            if not cfg.data_yaml:
+                raise ValueError(
+                    "data_yaml must be provided for .engine models "
+                    "(model.names is empty for TensorRT engines)"
+                )
+            self.class_names = _load_names_from_yaml(cfg.data_yaml)
+            try:
+                self.model.names = self.class_names
+            except Exception:
+                pass
+            logger.info(
+                f"Loaded {len(self.class_names)} class names "
+                f"from {cfg.data_yaml}: {list(self.class_names.values())}"
+            )
+        else:
+            self.class_names = dict(self.model.names)
+            logger.info(
+                f"Using built-in class names "
+                f"({len(self.class_names)} classes): {list(self.class_names.values())}"
+            )
         self._warmup()
+
+    def _get_class_name(self, cls_id: int) -> str:
+        """Возвращает имя класса по индексу. Никогда не падает."""
+        return self.class_names.get(int(cls_id), f"class_{int(cls_id)}")
 
     # ── Инициализация ─────────────────────────────────────────────────────────
 
@@ -149,7 +192,7 @@ class BalloonDetector:
                 else (None, ZONE_UNKNOWN)
             )
             detections.append({
-                "class":         self.model.names[int(cls_id)],
+                "class":         self._get_class_name(cls_id),
                 "confidence":    round(float(confidence), 4),
                 "area_ratio":    area_ratio,  # доля площади кадра
                 "distance_zone": zone,         # FAR / MEDIUM / CLOSE / UNKNOWN
@@ -187,10 +230,10 @@ class BalloonDetector:
                     ratio     = detections[i].get("area_ratio")
                     color     = self.cfg.zone_color(zone)
                     ratio_str = f" ({ratio:.3f})" if ratio is not None else ""
-                    label     = f"{self.model.names[int(cls_id)]} {confidence:.2f} [{zone}{ratio_str}]"
+                    label     = f"{self._get_class_name(cls_id)} {confidence:.2f} [{zone}{ratio_str}]"
                 else:
-                    color = self.cfg.class_color(cls_id)
-                    label = f"{self.model.names[int(cls_id)]} {confidence:.2f}"
+                    color = self.cfg.zone_color(ZONE_UNKNOWN)
+                    label = f"{self._get_class_name(cls_id)} {confidence:.2f}"
 
                 cv2.rectangle(vis, (box[0], box[1]), (box[2], box[3]), color, 2)
                 (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)

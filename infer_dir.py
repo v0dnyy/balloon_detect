@@ -29,6 +29,7 @@ VIDEO_EXTS = {".mp4", ".avi", ".mov", ".mkv"}
 def parse_args():
     parser = argparse.ArgumentParser(description="Batch inference on directory of files")
     parser.add_argument("--model", type=str, required=True, help="Path to model (.pt or .engine)")
+    parser.add_argument("--data", type=str, default=None, help="Path to data.yaml (required for .engine)")
     parser.add_argument("--input", type=str, required=True, help="Path to input directory")
     parser.add_argument("--imgsz", type=int, default=640, help="Inference image size")
     parser.add_argument("--conf", type=float, default=0.50, help="Confidence threshold")
@@ -57,10 +58,10 @@ def process_image(detector: BalloonDetector, file_path: Path, cfg: InferenceConf
         return []
 
     results = detector.predict(frame)
-    detections = detector.extract_detections(results)
+    detections = detector.extract_detections(results, frame.shape)
 
     # Сохранить аннотированное изображение
-    vis = detector.draw(frame, results)
+    vis = detector.draw(frame, results, detections=detections)
     out_img = cfg.output_dir / file_path.name
     cv2.imwrite(str(out_img), vis)
 
@@ -102,10 +103,10 @@ def process_video(detector: BalloonDetector, file_path: Path, cfg: InferenceConf
                 break
 
             results = detector.predict(frame)
-            detections = detector.extract_detections(results)
+            detections = detector.extract_detections(results, frame.shape)
             all_detections.extend(detections)
 
-            vis = detector.draw(frame, results)
+            vis = detector.draw(frame, results, detections=detections)
             writer.write(vis)
 
             if detections:
@@ -129,6 +130,7 @@ def main():
         conf=args.conf,
         iou=args.iou,
         half=args.half,
+        data_yaml=args.data
     )
     detector = BalloonDetector(cfg)
 

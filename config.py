@@ -17,6 +17,7 @@ class InferenceConfig:
     iou: float = 0.65
     half: bool = True  # FP16; True на Jetson GPU
     warmup_runs: int = 3  # кол-во прогревочных прогонов
+    data_yaml: str | None = "data.yaml"
 
     # ── Камера ────────────────────────────────────────────────────────────────
     camera_id: int = 0

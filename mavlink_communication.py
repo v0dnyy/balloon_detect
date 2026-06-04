@@ -66,14 +66,6 @@ class MAVLinkCommunication:
             logger.error(f"Ошибка смены режима: {e}")
             return False
 
-    def _switch_to_guided(self) -> bool:
-        """Переключает в GUIDED_NOGPS или GUIDED."""
-        for mode_name in ("GUIDED_NOGPS", "GUIDED"):
-            if self._switch_to_mode(mode_name):
-                return True
-        logger.warning("Ни GUIDED, ни GUIDED_NOGPS недоступны")
-        return False
-
     def send_status(self, text: str, severity=dialect.MAV_SEVERITY_INFO) -> None:
         if not self.connection:
             logger.warning("Нет соединения — STATUSTEXT не отправлен")
@@ -122,7 +114,7 @@ class MAVLinkCommunication:
                 previous_mode = self._get_current_mode()
                 logger.info(f"Текущий режим перед манёвром: {previous_mode}")
 
-                if not self._switch_to_guided():
+                if not self._switch_to_mode("GUIDED_NOGPS"):
                     logger.error("Avoidance отменён — не удалось переключить режим")
                     return
 

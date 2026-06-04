@@ -10,7 +10,6 @@ import argparse
 import datetime
 import logging
 import time
-from pathlib import Path
 
 import cv2
 import numpy as np
@@ -31,6 +30,7 @@ FRAME_SKIP = 1
 def parse_args():
     parser = argparse.ArgumentParser(description="UAV real-time inference from camera")
     parser.add_argument("--model", type=str, required=True, help="Path to model (.pt or .engine)")
+    parser.add_argument("--data", type=str, default=None, help="Path to data.yaml (required for .engine)")
     parser.add_argument("--camera_id", type=int, default=0, help="Camera device index")
     parser.add_argument("--imgsz", type=int, default=640, help="Inference image size")
     parser.add_argument("--conf", type=float, default=0.50, help="Confidence threshold")
@@ -63,6 +63,7 @@ def main():
         iou=args.iou,
         half=args.half,
         mav_port=args.mav_port,
+        data_yaml=args.data
     )
 
     detector = BalloonDetector(cfg)
