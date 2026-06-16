@@ -50,7 +50,7 @@ def send_attitude_target(connection, roll_angle=0.0, pitch_angle=0.0,
     if not hasattr(connection, 'start_time'):
         connection.start_time = time.time()
     time_boot_ms = int((time.time() - connection.start_time) * 1000)
-    print("envio senal")
+    # print("envio senal")
     connection.mav.set_attitude_target_send(
         time_boot_ms,
         connection.target_system,
