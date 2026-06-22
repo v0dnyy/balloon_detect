@@ -10,6 +10,17 @@ from send_angle import set_attitude
 
 logger = logging.getLogger(__name__)
 
+_VELOCITY_ONLY_MASK = (
+    mavutil.mavlink.POSITION_TARGET_TYPEMASK_X_IGNORE
+    | mavutil.mavlink.POSITION_TARGET_TYPEMASK_Y_IGNORE
+    | mavutil.mavlink.POSITION_TARGET_TYPEMASK_Z_IGNORE
+    | mavutil.mavlink.POSITION_TARGET_TYPEMASK_AX_IGNORE
+    | mavutil.mavlink.POSITION_TARGET_TYPEMASK_AY_IGNORE
+    | mavutil.mavlink.POSITION_TARGET_TYPEMASK_AZ_IGNORE
+    | mavutil.mavlink.POSITION_TARGET_TYPEMASK_YAW_IGNORE
+    | mavutil.mavlink.POSITION_TARGET_TYPEMASK_YAW_RATE_IGNORE
+)
+
 
 class MAVLinkCommunication:
     def __init__(
@@ -77,6 +88,27 @@ class MAVLinkCommunication:
         )
         self.connection.mav.send(msg)
         logger.info(f"STATUSTEXT: {text}")
+
+    def send_command(
+        self,
+        roll_angle=0.0,
+        pitch_angle=0.0,
+        yaw_angle=0,
+        yaw_rate=0.0,
+        use_yaw_rate=0,
+        thrust=0.5,
+        duration=0,
+    ):
+        set_attitude(
+            self.connection,
+            roll_angle,
+            pitch_angle,
+            yaw_angle,
+            yaw_rate,
+            use_yaw_rate,
+            thrust,
+            duration,
+        )
 
     def send_detection_alert(
         self,
@@ -148,6 +180,51 @@ class MAVLinkCommunication:
                 self._avoidance_active = False
 
         threading.Thread(target=_avoidance, daemon=True).start()
+
+    def send_velocity_body(
+        self,
+        vx_body: float,
+        vy_body: float,
+        vz_body: float,
+    ) -> None:
+        """
+        Команда скорости в системе координат тела дрона (MAV_FRAME_BODY_NED).
+        Дрон должен быть в режиме GUIDED_NOGPS.
+
+        Args:
+            vx_body: вперёд/назад, м/с  (+вперёд)
+            vy_body: право/лево, м/с    (+вправо)
+            vz_body: вниз/вверх, м/с    (+вниз, NED!)
+        """
+        if not self.connection:
+            logger.warning("Нет соединения — velocity не отправлена")
+            return
+        self.connection.mav.set_position_target_local_ned_send(
+            time_boot_ms=int(time.monotonic() * 1000) & 0xFFFFFFFF,
+            target_system=self.connection.target_system,
+            target_component=self.connection.target_component,
+            coordinate_frame=mavutil.mavlink.MAV_FRAME_BODY_NED,
+            type_mask=_VELOCITY_ONLY_MASK,
+            x=0.0,
+            y=0.0,
+            z=0.0,
+            vx=vx_body,
+            vy=vy_body,
+            vz=vz_body,
+            afx=0.0,
+            afy=0.0,
+            afz=0.0,
+            yaw=0.0,
+            yaw_rate=0.0,
+        )
+        logger.debug(
+            f"velocity_body → vx={vx_body:.3f} vy={vy_body:.3f} vz={vz_body:.3f}"
+        )
+
+    def send_hover(self) -> None:
+        """Зависание: нулевые скорости по всем осям."""
+        self.send_velocity_body(0.0, 0.0, 0.0)
+        logger.info("HOVER")
 
     def change_to_loiter(self) -> bool:
         if not self.connection:

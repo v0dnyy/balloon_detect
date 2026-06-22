@@ -12,8 +12,8 @@ SCRIPT="infer_stream.py"
 ENGINE="best.engine"        # путь к TensorRT движку
 CAMERA_ID=0                 # индекс камеры (/dev/video0)
 IMGSZ=640                   # размер изображения для инференса
-CONF=0.55                   # порог уверенности
-IOU=0.65                    # порог IoU
+CONF=0.65                   # порог уверенности
+IOU=0.55                    # порог IoU
 MAV_PORT="/dev/ttyACM0"     # UART порт MAVLink на Jetson
 DATA="data.yaml"
 

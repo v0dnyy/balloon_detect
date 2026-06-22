@@ -27,11 +27,23 @@ class InferenceConfig:
     mav_port: str = "/dev/ttyTHS0"
 
     # ── Расстояние (Bbox Area Ratio) ──────────────────────────────────────────
-    distance_close_threshold: float = 0.01  # >= 8% площади кадра → CLOSE
-    distance_far_threshold: float = 0.002  # <= 2% площади кадра → FAR
+    distance_close_threshold: float = 0.00475  # >= 8% площади кадра → CLOSE
+    distance_far_threshold: float = 0.0035  # <= 2% площади кадра → FAR
 
-    # Кулдаун между MAVLink-алертами одной зоны (секунды).
+    # КД между MAVLink-алертами одной зоны (секунды).
     mav_alert_cooldown_s: float = 5.0
+
+    # ── EMA-сглаживание ───────────────────────────────────────────────────
+    '''
+    alpha = 1.0 → нет сглаживания (берём сырое значение)
+    alpha = 0.1 → сильное сглаживание (медленный отклик)
+    alpha = 0.3-0.5 → хороший баланс для этой задачи
+
+    Рекомендуемые alpha:
+    Быстрый шарик/низкий FPS: 0.5-0.7  (нельзя отставать)
+    Медленный шарик/высокий FPS: 0.2-0.4 (больше сглаживания)
+    '''
+    ema_alpha: float = 0.35   # коэффициент EMA для bbox; 1.0 = без сглаживания
 
     # ── Вывод ─────────────────────────────────────────────────────────────────
     output_dir: Path = Path("./output")
@@ -39,8 +51,7 @@ class InferenceConfig:
     show_fps_overlay: bool = True
 
     # ── Визуализация ──────────────────────────────────────────────────────────
-    zone_colors: dict = field(
-        default_factory=lambda: {
+    zone_colors: dict = field(default_factory=lambda: {
             "FAR": (50, 205, 50),  # зелёный
             "MEDIUM": (255, 212, 67),  # оранжевый
             "CLOSE": (0, 0, 220),  # красный
