@@ -404,7 +404,7 @@ class BalloonDetector:
         hud = [
             f"Status : {status}",
             f"Error X:{output.error_x:+.3f}  Y:{output.error_y:+.3f}  Z:{output.error_z:+.3f}",
-            f"Vel vx:{output.vx:+.2f}  vy:{output.vy:+.2f}  vz:{output.vz:+.2f} m/s",
+            f"Yaw:{output.yaw_angle_deg:+.2f}°  Thrust:{output.thrust:+.2f}  Pitch:{output.pitch_deg:+.2f}°",
             f"Area {output.area_ratio:.4f}",
         ]
         if fps is not None and self.cfg.show_fps_overlay:
@@ -455,9 +455,9 @@ class BalloonDetector:
                 "error_x": output.error_x,
                 "error_y": output.error_y,
                 "error_z": output.error_z,
-                "vx": output.vx,
-                "vy": output.vy,
-                "vz": output.vz,
+                "yaw": output.yaw_angle_deg,
+                "thrust": output.thrust,
+                "pitch": output.pitch_deg,
             },
         }
         with open(log_path, "a", encoding="utf-8") as f:

@@ -6,7 +6,7 @@ import pymavlink.dialects.v20.all as dialect
 import pymavlink.mavutil as utility
 from pymavlink import mavutil
 
-from send_angle import set_attitude
+from send_angle import send_attitude_target, set_attitude_blocking
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +76,7 @@ class MAVLinkCommunication:
         except Exception as e:
             logger.error(f"Ошибка смены режима: {e}")
             return False
+        
 
     def send_status(self, text: str, severity=dialect.MAV_SEVERITY_INFO) -> None:
         if not self.connection:
@@ -91,23 +92,27 @@ class MAVLinkCommunication:
 
     def send_command(
         self,
-        roll_angle=0.0,
         pitch_angle=0.0,
         yaw_angle=0,
-        yaw_rate=0.0,
-        use_yaw_rate=0,
         thrust=0.5,
-        duration=0,
     ):
-        set_attitude(
+        """
+        Вызывается каждый кадр из follow_stream.py.
+
+        pitch_angle  — из PID по оси Z (дальность), градусы
+        yaw_angle    — накопленный target_yaw из follow_stream, градусы
+        thrust       — из PID по оси Y (высота) + компенсация pitch, [0..1]
+        """
+        if not self.connection:
+            logger.warning("Нет соединения — команда не отправлена")
+            return
+
+        send_attitude_target(
             self.connection,
-            roll_angle,
-            pitch_angle,
-            yaw_angle,
-            yaw_rate,
-            use_yaw_rate,
-            thrust,
-            duration,
+            roll_angle=0.0,      # roll не используем
+            pitch_angle=pitch_angle,
+            yaw_angle=yaw_angle,
+            thrust=thrust,
         )
 
     def send_detection_alert(
@@ -154,12 +159,12 @@ class MAVLinkCommunication:
                 time.sleep(0.3)
 
                 logger.info("Avoidance: фаза 1 — UP (2с)")
-                set_attitude(
+                set_attitude_blocking(
                     self.connection, pitch_angle=0.0, thrust=0.65, duration=2.0
                 )
 
                 logger.info("Avoidance: фаза 2 — FORWARD (2с)")
-                set_attitude(
+                set_attitude_blocking(
                     self.connection, pitch_angle=-10.0, thrust=0.5, duration=2.0
                 )
 
@@ -221,9 +226,18 @@ class MAVLinkCommunication:
             f"velocity_body → vx={vx_body:.3f} vy={vy_body:.3f} vz={vz_body:.3f}"
         )
 
-    def send_hover(self) -> None:
-        """Зависание: нулевые скорости по всем осям."""
-        self.send_velocity_body(0.0, 0.0, 0.0)
+    def send_hover(self, yaw_angle: 0.0) -> None:
+        if not self.connection:
+            logger.warning("Нет соединения — hover не отправлен")
+            return
+        
+        send_attitude_target(
+            self.connection,
+            roll_angle=0.0,
+            pitch_angle=0.0,
+            yaw_angle=yaw_angle,
+            thrust=0.5,
+        )
         logger.info("HOVER")
 
     def change_to_loiter(self) -> bool:

@@ -1,9 +1,9 @@
 """
 Экспорт обученной модели в ONNX формат.
 Пример запуска:
-    python export_onnx.py --model best.pt
-    python export_onnx.py --model best.pt --imgsz 416 --dynamic
-    python export_onnx.py --model best.pt --verify  # проверить модель после экспорта
+    python export_onnx.py --model ../best.pt
+    python export_onnx.py --model ../best.pt --imgsz 416 --dynamic
+    python export_onnx.py --model ../best.pt --verify  # проверить модель после экспорта
 """
 import argparse
 import logging

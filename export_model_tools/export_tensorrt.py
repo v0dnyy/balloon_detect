@@ -4,7 +4,7 @@
 
 Пример запуска:
     python export_tensorrt.py --model runs/train/best.pt
-    python export_tensorrt.py --model best.pt --imgsz 416 --int8  # быстрее, чуть хуже mAP
+    python export_tensorrt.py --model ../best.pt --imgsz 416 --int8  # быстрее, чуть хуже mAP
 """
 import argparse
 import logging

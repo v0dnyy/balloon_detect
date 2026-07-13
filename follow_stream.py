@@ -34,7 +34,7 @@ def parse_args():
     p = argparse.ArgumentParser(description="Balloon follow mode with PID")
     p.add_argument("--model", type=str, required=True)
     p.add_argument("--data", type=str, default="data.yaml")
-    p.add_argument("--camera_id", type=int, default=0)
+    p.add_argument("--camera_id", type=str)#, default=0)
     p.add_argument("--imgsz", type=int, default=640)
     p.add_argument("--conf", type=float, default=0.50)
     p.add_argument("--iou", type=float, default=0.65)
@@ -51,7 +51,7 @@ def parse_args():
         help="Целевая площадь bbox/frame (default 0.005)",
     )
     p.add_argument(
-        "--ema_alpha", type=float, default=0.3, help="Коэффициент EMA (default 0.35)"
+        "--ema_alpha", type=float, default=0.3, help="Коэффициент EMA (default 0.3)"
     )
     p.add_argument("--max_lost", type=int, default=15)
     return p.parse_args()
@@ -129,6 +129,7 @@ def main():
     lost_streak = 0
     last_good_frame: Optional[np.ndarray] = None
     last_track: Optional[dict] = None
+    
     last_output = ControlOutput(
         track_id=None,
         class_name=None,
@@ -138,9 +139,9 @@ def main():
         error_x=0.0,
         error_y=0.0,
         error_z=0.0,
-        vx=0.0,
-        vy=0.0,
-        vz=0.0,
+        yaw_angle_deg=0.0,
+        thrust=pid_cfg.base_thrust,
+        pitch_deg=0.0,
         lost=True,
     )
     prev_time = time.perf_counter()
@@ -184,29 +185,23 @@ def main():
             if last_output.lost:
                 logger.info("[HOVERING] Объектов не найдено")
                 if mav:
-                    mav.send_hover()
+                    mav.send_hover(yaw_angle=last_output.yaw_angle_deg)
             else:
                 logger.info(
-                        f"[TRACKING] ID:{last_output.track_id} class: {last_output.class_name}| "
-                        f"err=({last_output.error_x:.3f}, {last_output.error_y:.3f}, {last_output.error_z:.3f}) | "
-                        f"roll_angle=({last_output.vx:.3f}, thrust={last_output.vy:.3f}, pitch_angle={last_output.vz:.3f}) | "
+                        f"[TRACKING] ID:{last_output.track_id} class:{last_output.class_name} | "
+                        f"err=(X: {last_output.error_x:.3f}, Y: {last_output.error_y:.3f}, Z: {last_output.error_z:.3f}) | "
+                        f"yaw={last_output.yaw_angle_deg:.1f}° "
+                        f"pitch={last_output.pitch_deg:.1f}° "
+                        f"thrust={last_output.thrust:.3f} | "
                         f"area={last_output.area_ratio:.5f}"
                     )
+                
                 if mav:
-                    # Маппинг PID-осей → MAV_FRAME_BODY_NED:
-                    #   вперёд/назад ← PID_z (управляет дальностью)
-                    #   право/лево   ← PID_x (управляет горизонталью)
-                    #   вниз/вверх   ← PID_y (управляет вертикалью, NED!)
-                    mav.send_command(roll_angle=last_output.vx,
-                                     pitch_angle=last_output.vz,
-                                     
-                                     thrust=last_output.vy
-                                     )
-                    # mav.send_velocity_body(
-                    #     vx_body=last_output.vz,
-                    #     vy_body=last_output.vx,
-                    #     vz_body=last_output.vy,
-                    # )                
+                    mav.send_command(
+                            pitch_angle=last_output.pitch_deg,
+                            yaw_angle=last_output.yaw_angle_deg,
+                            thrust=last_output.thrust,
+                        )
 
 
             # ── FPS ───────────────────────────────────────────────────────
@@ -241,7 +236,7 @@ def main():
         logger.info("Interrupted by user")
     finally:
         if mav:
-            mav.send_hover()
+            mav.send_hover(yaw_angle=last_output.yaw_angle_deg)
             mav.close()
         cap.release()
         if writer:
